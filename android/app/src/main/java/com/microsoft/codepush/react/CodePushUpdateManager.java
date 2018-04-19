@@ -1,5 +1,6 @@
 package com.microsoft.codepush.react;
 
+import android.util.Log;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
@@ -78,6 +79,7 @@ public class CodePushUpdateManager {
         return getPackageFolderPath(packageHash);
     }
 
+
     public String getCurrentPackageBundlePath(String bundleFileName) {
         String packageFolder = getCurrentPackageFolderPath();
         if (packageFolder == null) {
@@ -90,11 +92,23 @@ public class CodePushUpdateManager {
         }
 
         String relativeBundlePath = currentPackage.optString(CodePushConstants.RELATIVE_BUNDLE_PATH_KEY, null);
+
+
         if (relativeBundlePath == null) {
             return CodePushUtils.appendPathComponent(packageFolder, bundleFileName);
         } else {
-            return CodePushUtils.appendPathComponent(packageFolder, relativeBundlePath);
+            String fileName = relativeBundlePath.substring(relativeBundlePath.lastIndexOf("/")+1);
+            Log.i("test","fileName:"+fileName+"bundleFileName:"+bundleFileName);
+            if(fileName.equals(bundleFileName)){
+                return CodePushUtils.appendPathComponent(packageFolder, relativeBundlePath);
+            }else{
+                String newRelativeBundlePath = relativeBundlePath.substring(0,relativeBundlePath.lastIndexOf("/")+1) + bundleFileName;
+                Log.i("test","newRelativeBundlePath:"+ newRelativeBundlePath);
+                return CodePushUtils.appendPathComponent(packageFolder, newRelativeBundlePath);
+            }
+
         }
+
     }
 
     public String getPackageFolderPath(String packageHash) {
@@ -163,12 +177,11 @@ public class CodePushUpdateManager {
         try {
             URL downloadUrl = new URL(downloadUrlString);
             connection = (HttpURLConnection) (downloadUrl.openConnection());
-            connection.setRequestProperty("Accept-Encoding", "identity");
-            bin = new BufferedInputStream(connection.getInputStream());
 
             long totalBytes = connection.getContentLength();
             long receivedBytes = 0;
 
+            bin = new BufferedInputStream(connection.getInputStream());
             File downloadFolder = new File(getCodePushPath());
             downloadFolder.mkdirs();
             downloadFile = new File(downloadFolder, CodePushConstants.DOWNLOAD_FILE_NAME);

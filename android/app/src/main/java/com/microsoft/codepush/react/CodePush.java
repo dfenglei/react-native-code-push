@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.support.annotation.NonNull;
 
+import android.support.annotation.Nullable;
+import android.util.Log;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.JavaScriptModule;
@@ -166,7 +168,7 @@ public class CodePush implements ReactPackage {
 
     @Deprecated
     public static String getBundleUrl(String assetsBundleFileName) {
-        return getJSBundleFile(assetsBundleFileName);
+        return getJSBundleFile(assetsBundleFileName, mCurrentInstance);
     }
 
     public Context getContext() {
@@ -178,10 +180,12 @@ public class CodePush implements ReactPackage {
     }
 
     public static String getJSBundleFile() {
-        return CodePush.getJSBundleFile(CodePushConstants.DEFAULT_JS_BUNDLE_NAME);
+        return CodePush.getJSBundleFile(CodePushConstants.DEFAULT_JS_BUNDLE_NAME, mCurrentInstance);
     }
 
-    public static String getJSBundleFile(String assetsBundleFileName) {
+    public static String getJSBundleFile(String assetsBundleFileName, CodePush context) {
+        mCurrentInstance = context;
+
         if (mCurrentInstance == null) {
             throw new CodePushNotInitializedException("A CodePush instance has not been created yet. Have you added it to your app's list of ReactPackages?");
         }
@@ -194,6 +198,7 @@ public class CodePush implements ReactPackage {
         String binaryJsBundleUrl = CodePushConstants.ASSETS_BUNDLE_PREFIX + assetsBundleFileName;
 
         String packageFilePath = mUpdateManager.getCurrentPackageBundlePath(this.mAssetsBundleFileName);
+
         if (packageFilePath == null) {
             // There has not been any downloaded updates.
             CodePushUtils.logBundleUrl(binaryJsBundleUrl);
@@ -202,6 +207,7 @@ public class CodePush implements ReactPackage {
         }
 
         JSONObject packageMetadata = this.mUpdateManager.getCurrentPackage();
+
         if (isPackageBundleLatest(packageMetadata)) {
             CodePushUtils.logBundleUrl(packageFilePath);
             sIsRunningBinaryVersion = false;
@@ -317,10 +323,6 @@ public class CodePush implements ReactPackage {
     /* The below 3 methods are used for running tests.*/
     public static boolean isUsingTestConfiguration() {
         return sTestConfigurationFlag;
-    }
-
-    public void setDeploymentKey(String deploymentKey) {
-        mDeploymentKey = deploymentKey;
     }
 
     public static void setUsingTestConfiguration(boolean shouldUseTestConfiguration) {
