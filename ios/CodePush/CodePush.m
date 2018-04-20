@@ -152,14 +152,17 @@ static NSString *bundleResourceSubdirectory = nil;
 
     NSError *error;
     NSString *packageFile = [CodePushPackage getCurrentPackageBundlePath:&error];
+    
+    CPLog(@"packageFile:%@",packageFile);
     NSURL *binaryBundleURL = [self binaryBundleURL];
+    CPLog(@"binaryBundleURL:%@",[binaryBundleURL relativePath]);
 
     if (error || !packageFile) {
         CPLog(logMessageFormat, binaryBundleURL);
         isRunningBinaryVersion = YES;
         return binaryBundleURL;
     }
-
+    
     NSString *binaryAppVersion = [[CodePushConfig current] appVersion];
     NSDictionary *currentPackageMetadata = [CodePushPackage getCurrentPackage:&error];
     if (error || !currentPackageMetadata) {
@@ -167,16 +170,53 @@ static NSString *bundleResourceSubdirectory = nil;
         isRunningBinaryVersion = YES;
         return binaryBundleURL;
     }
+    
+  
 
     NSString *packageDate = [currentPackageMetadata objectForKey:BinaryBundleDateKey];
     NSString *packageAppVersion = [currentPackageMetadata objectForKey:AppVersionKey];
-
-    if ([[CodePushUpdateUtils modifiedDateStringOfFileAtURL:binaryBundleURL] isEqualToString:packageDate] && ([CodePush isUsingTestConfiguration] ||[binaryAppVersion isEqualToString:packageAppVersion])) {
+ 
+    CPLog(@"modifiedDateStringOfFileAtURL:%@",[CodePushUpdateUtils modifiedDateStringOfFileAtURL:binaryBundleURL]);
+    CPLog(@"packageDate:%@",packageDate);
+    CPLog(@"isUsingTestConfiguration:%@",[CodePush isUsingTestConfiguration]);
+    CPLog(@"binaryAppVersion:%@",binaryAppVersion);
+    CPLog(@"packageAppVersion:%@",packageAppVersion);
+    Boolean checkFlag = true;//双bundle情况下bundle名和meta中不一致不检查修改时间
+    //用来取自定义的bundle
+    NSArray *urlSeparated = [[NSArray alloc]init];
+    NSString *fileName = [[NSString alloc]init];
+    NSString *fileWholeName = [[NSString alloc]init];
+    urlSeparated = [packageFile componentsSeparatedByString:@"/"];
+    fileWholeName = [urlSeparated lastObject];
+    fileName = [[fileWholeName componentsSeparatedByString:@"."] firstObject];
+    
+    if([fileName isEqualToString:resourceName]){
+        checkFlag = true;
+    }else{
+        checkFlag = false;
+    }
+    
+    if ((!checkFlag ||[[CodePushUpdateUtils modifiedDateStringOfFileAtURL:binaryBundleURL] isEqualToString:packageDate]) && ([CodePush isUsingTestConfiguration] ||[binaryAppVersion isEqualToString:packageAppVersion])) {
         // Return package file because it is newer than the app store binary's JS bundle
-        NSURL *packageUrl = [[NSURL alloc] initFileURLWithPath:packageFile];
-        CPLog(logMessageFormat, packageUrl);
-        isRunningBinaryVersion = NO;
-        return packageUrl;
+        
+        if([fileName isEqualToString:resourceName]){
+            NSURL *packageUrl = [[NSURL alloc] initFileURLWithPath:packageFile];
+            CPLog(logMessageFormat, packageUrl);
+            isRunningBinaryVersion = NO;
+            return packageUrl;
+        }else{
+            NSString *newFileName = [[NSString alloc]init];
+            NSString *baseUrl = [packageFile substringToIndex:([packageFile length] - [fileWholeName length] )];
+            newFileName = [newFileName stringByAppendingFormat:@"%@%@%@", resourceName, @".", resourceExtension];
+            NSString *newPackageFile = [baseUrl stringByAppendingString:newFileName];
+        
+            NSURL *packageUrl = [[NSURL alloc] initFileURLWithPath:newPackageFile];
+            CPLog(logMessageFormat, packageUrl);
+            isRunningBinaryVersion = NO;
+            return packageUrl;
+        }
+        
+        
     } else {
         BOOL isRelease = NO;
 #ifndef DEBUG
